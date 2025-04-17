@@ -1,0 +1,13 @@
+{
+  "name": "compliance-auditor-agent-tests",
+  "version": "1.0.0",
+  "description": "Test scripts for the Compliance Auditor Agent",
+  "main": "setup_test_data.js",
+  "scripts": {
+    "setup-data": "node setup_test_data.js"
+  },
+  "dependencies": {
+    "jsforce": "^1.11.0",
+    "dotenv": "^16.0.3"
+  }
+} 

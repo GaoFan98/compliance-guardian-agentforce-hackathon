@@ -1,0 +1,89 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Test files containing sensitive data
+test_files/
+*.pii
+*.sensitive
+*.credentials
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for coverage reports
+coverage/
+
+# Build output
+dist/
+build/
+out/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.history/
+
+# Docker
+docker-compose.override.yml
+*.env.docker
+
+# Salesforce
+salesforce/local/
+.sfdx/
+
+# Personal notes and documentation
+notes.md
+PRIVATE*.md
+
+# Temp and cache files
+.tmp/
+.cache/
+tmp/
+temp/
+
+# Security audit files
+npm-audit.json
+
+# Local testing scripts
+test_scan.js
+
+# Node.js dependencies
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Salesforce metadata
+.sf/
+.localdevserver/
+
+# macOS
+.DS_Store
+
+# IDEs and editors
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo 

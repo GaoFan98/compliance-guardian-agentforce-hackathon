@@ -1,0 +1,32 @@
+{
+  "name": "compliance-auditor-agent",
+  "version": "1.0.0",
+  "description": "Slack-Integrated Compliance Auditor Agent for Salesforce Agentforce",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "salesforce",
+    "agentforce",
+    "slack",
+    "compliance",
+    "ai"
+  ],
+  "author": "Hackathon Participant",
+  "license": "MIT",
+  "dependencies": {
+    "@slack/bolt": "^3.13.0",
+    "axios": "^1.4.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsforce": "^1.11.0",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.22"
+  }
+} 
