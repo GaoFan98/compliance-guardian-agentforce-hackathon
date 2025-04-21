@@ -3,7 +3,7 @@ services:
   middleware:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:3000"
     environment:
       - NODE_ENV=production
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
@@ -12,6 +12,11 @@ services:
       - SALESFORCE_USERNAME=${SALESFORCE_USERNAME}
       - SALESFORCE_PASSWORD=${SALESFORCE_PASSWORD}
       - SALESFORCE_AGENT_ID=${SALESFORCE_AGENT_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - USE_OPENAI=${USE_OPENAI:-true}
+      - USE_SALESFORCE=${USE_SALESFORCE:-false}
+      - ENABLE_MOCK_MODE=${ENABLE_MOCK_MODE:-false}
     volumes:
       - ./logs:/app/logs
+      - ./src:/app/src
     restart: unless-stopped 

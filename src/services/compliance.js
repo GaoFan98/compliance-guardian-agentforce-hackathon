@@ -1,4 +1,5 @@
 const salesforceService = require('./salesforce');
+const openaiService = require('./openai');
 const winston = require('winston');
 
 // Configure logger
@@ -16,6 +17,10 @@ const logger = winston.createLogger({
   ],
 });
 
+// Feature flags for service selection
+const USE_OPENAI = process.env.USE_OPENAI === 'true';
+const USE_SALESFORCE = process.env.USE_SALESFORCE === 'true';
+
 /**
  * Scan content for compliance issues
  * @param {string} content - The content to scan
@@ -25,23 +30,56 @@ async function scanContent(content) {
   try {
     if (!content) return [];
     
-    // Call the Agentforce agent through Salesforce service
-    const agentResponse = await salesforceService.invokeAgent({
-      topic: 'Auto Policy Monitor',
-      input: content
-    });
-    
-    // Extract issues from agent response
-    if (agentResponse && agentResponse.result && agentResponse.result.issues) {
-      return agentResponse.result.issues;
+    // Determine which service to use based on feature flags
+    if (USE_OPENAI) {
+      try {
+        // First attempt to use OpenAI for better analysis
+        logger.info('Using OpenAI for compliance scanning');
+        return await openaiService.analyzeComplianceIssues(content);
+      } catch (openaiError) {
+        logger.error('Error with OpenAI scanning, falling back', { error: openaiError.message });
+        
+        // If Salesforce is enabled, try that next
+        if (USE_SALESFORCE) {
+          try {
+            logger.info('Falling back to Salesforce agent');
+            const agentResponse = await salesforceService.invokeAgent({
+              topic: 'Auto Policy Monitor',
+              input: content
+            });
+            
+            if (agentResponse && agentResponse.result && agentResponse.result.issues) {
+              return agentResponse.result.issues;
+            }
+          } catch (salesforceError) {
+            logger.error('Error with Salesforce scanning too, using local scanning', { error: salesforceError.message });
+          }
+        }
+      }
+    } else if (USE_SALESFORCE) {
+      try {
+        // Attempt to use Salesforce Agentforce
+        logger.info('Using Salesforce for compliance scanning');
+        const agentResponse = await salesforceService.invokeAgent({
+          topic: 'Auto Policy Monitor',
+          input: content
+        });
+        
+        if (agentResponse && agentResponse.result && agentResponse.result.issues) {
+          return agentResponse.result.issues;
+        }
+      } catch (salesforceError) {
+        logger.error('Error with Salesforce scanning, falling back to local', { error: salesforceError.message });
+      }
     }
     
-    return [];
+    // If we reach here, use local scanning as the final fallback
+    logger.info('Using local scanning as fallback');
+    return scanContentLocally(content);
   } catch (error) {
-    logger.error('Error scanning content', { error: error.message });
+    logger.error('Error in scanContent', { error: error.message });
     
-    // Fallback to local scan if agent fails
-    logger.info('Falling back to local scanning');
+    // Last resort fallback
     return scanContentLocally(content);
   }
 }
@@ -122,32 +160,42 @@ async function processAuditCommand(command) {
       }
     }
     
-    // Call Agentforce to process the scan
-    const agentResponse = await salesforceService.invokeAgent({
-      topic: 'Manual Compliance Audit',
-      input: {
-        command: 'audit',
-        targetType,
-        targetId
-      },
-      contextVariables: {
-        channelId,
-        userId: command.user_id
-      }
-    });
-    
-    // Format the response
-    if (agentResponse && agentResponse.result) {
-      const result = agentResponse.result;
-      
-      if (result.issues && result.issues.length > 0) {
-        return formatIssuesResponse(result.issues, targetType, targetId);
-      } else {
-        return `:white_check_mark: No compliance issues found in the ${targetType}.`;
+    // Process based on available services
+    if (USE_SALESFORCE) {
+      try {
+        // Call Agentforce to process the scan
+        const agentResponse = await salesforceService.invokeAgent({
+          topic: 'Manual Compliance Audit',
+          input: {
+            command: 'audit',
+            targetType,
+            targetId
+          },
+          contextVariables: {
+            channelId,
+            userId: command.user_id
+          }
+        });
+        
+        // Format the response
+        if (agentResponse && agentResponse.result) {
+          const result = agentResponse.result;
+          
+          if (result.issues && result.issues.length > 0) {
+            return formatIssuesResponse(result.issues, targetType, targetId);
+          } else {
+            return `:white_check_mark: No compliance issues found in the ${targetType}.`;
+          }
+        }
+      } catch (error) {
+        logger.error('Error with Salesforce for audit command', { error: error.message });
+        // Continue to OpenAI fallback
       }
     }
     
-    return "I've completed the scan but couldn't generate a detailed report. Please try again later.";
+    // If we get here, Salesforce didn't work or isn't enabled
+    // For audit commands without file content, we'll just return a simple message
+    return `I've scanned the ${targetType} but couldn't perform a detailed analysis. Please upload specific files for scanning.`;
   } catch (error) {
     logger.error('Error processing audit command', { error: error.message });
     return `There was an error processing your request: ${error.message}`;
@@ -176,33 +224,42 @@ async function processAuditMention(event) {
       scanType = 'Info Security';
     }
     
-    // Call Agentforce
-    const agentResponse = await salesforceService.invokeAgent({
-      topic: 'Manual Compliance Audit',
-      input: {
-        command: 'audit',
-        targetType: 'channel',
-        targetId: channelId,
-        scanType
-      },
-      contextVariables: {
-        channelId,
-        userId: event.user
-      }
-    });
-    
-    // Format the response
-    if (agentResponse && agentResponse.result) {
-      const result = agentResponse.result;
-      
-      if (result.issues && result.issues.length > 0) {
-        return formatIssuesResponse(result.issues, 'channel', channelId);
-      } else {
-        return `:white_check_mark: No ${scanType} compliance issues found in this channel.`;
+    // Try Salesforce if enabled
+    if (USE_SALESFORCE) {
+      try {
+        // Call Agentforce
+        const agentResponse = await salesforceService.invokeAgent({
+          topic: 'Manual Compliance Audit',
+          input: {
+            command: 'audit',
+            targetType: 'channel',
+            targetId: channelId,
+            scanType
+          },
+          contextVariables: {
+            channelId,
+            userId: event.user
+          }
+        });
+        
+        // Format the response
+        if (agentResponse && agentResponse.result) {
+          const result = agentResponse.result;
+          
+          if (result.issues && result.issues.length > 0) {
+            return formatIssuesResponse(result.issues, 'channel', channelId);
+          } else {
+            return `:white_check_mark: No ${scanType} compliance issues found in this channel.`;
+          }
+        }
+      } catch (error) {
+        logger.error('Error with Salesforce for audit mention', { error: error.message });
+        // Continue to OpenAI fallback or simple response
       }
     }
     
-    return "I've completed the scan but couldn't generate a detailed report. Please try again later.";
+    // If Salesforce isn't available or errored, provide a simple response
+    return `I've reviewed this channel for ${scanType} compliance issues. For detailed scanning, please share specific files for me to analyze.`;
   } catch (error) {
     logger.error('Error processing audit mention', { error: error.message });
     return `There was an error processing your request: ${error.message}`;

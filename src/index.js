@@ -2,6 +2,7 @@ const { App } = require('@slack/bolt');
 const dotenv = require('dotenv');
 const winston = require('winston');
 const salesforceService = require('./services/salesforce');
+const openaiService = require('./services/openai');
 const complianceService = require('./services/compliance');
 
 // Load environment variables
@@ -29,9 +30,24 @@ const app = new App({
   socketMode: false,
 });
 
-// For hackathon testing, we'll use mock mode by default
-logger.info('Starting in mock mode for testing');
-salesforceService.enableMockMode();
+// Enable mock mode based on environment variable
+const ENABLE_MOCK_MODE = process.env.ENABLE_MOCK_MODE === 'true';
+
+// For hackathon testing, we'll use mock mode if enabled
+if (ENABLE_MOCK_MODE) {
+  logger.info('Starting in mock mode for testing');
+  salesforceService.enableMockMode();
+  openaiService.enableMockMode();
+} else {
+  logger.info('Starting in live mode');
+  // Using environment variables to determine which service to use
+  if (process.env.USE_SALESFORCE === 'true') {
+    logger.info('Salesforce integration enabled');
+  }
+  if (process.env.USE_OPENAI === 'true') {
+    logger.info('OpenAI integration enabled');
+  }
+}
 
 // Handle slash commands
 app.command('/compliance-audit', async ({ command, ack, respond }) => {
